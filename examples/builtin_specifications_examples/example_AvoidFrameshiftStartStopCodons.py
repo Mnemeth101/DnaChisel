@@ -4,6 +4,7 @@ from Bio.Data import CodonTable
 
 from dnachisel import (
     AvoidFrameshiftStartStopCodons,
+    CodonOptimize,
     DnaOptimizationProblem,
     EnforceTranslation,
     translate,
@@ -23,11 +24,19 @@ def find_frameshift_start_stop(sequence, genetic_table="Standard"):
     return hits
 
 
-def main():
-    sequence = "AATGAACTGCAAGCTGAA"
-    print("Initial translation (+0):", translate(sequence))
-    print("Frameshift hits:", find_frameshift_start_stop(sequence))
+def run_without_spec(sequence, translation):
+    problem = DnaOptimizationProblem(
+        sequence=sequence,
+        constraints=[EnforceTranslation(translation=translation)],
+        objectives=[CodonOptimize(species="e_coli")],
+        logger=None,
+    )
+    problem.resolve_constraints()
+    problem.optimize()
+    return problem.sequence
 
+
+def run_with_spec(sequence):
     problem = DnaOptimizationProblem(
         sequence=sequence,
         constraints=[
@@ -36,14 +45,28 @@ def main():
         ],
         logger=None,
     )
-
-    print("Constraints pass before:", problem.all_constraints_pass())
     problem.resolve_constraints()
-    print("Constraints pass after:", problem.all_constraints_pass())
+    return problem.sequence
 
-    print("Optimized sequence:", problem.sequence)
-    print("Optimized translation (+0):", translate(problem.sequence))
-    print("Frameshift hits after optimization:", find_frameshift_start_stop(problem.sequence))
+
+def main():
+    sequence = "AATGAACTGCAAGCTGAA"
+    print("Initial translation (+0):", translate(sequence))
+    print("Frameshift hits:", find_frameshift_start_stop(sequence))
+
+    fixed = run_with_spec(sequence)
+    print("\nWith AvoidFrameshiftStartStopCodons")
+    print("Optimized sequence:", fixed)
+    print("Optimized translation (+0):", translate(fixed))
+    print("Frameshift hits after optimization:", find_frameshift_start_stop(fixed))
+
+    translation = "MKTSKQYQK*"
+    start_seq = "ATGAAAACCAGCAAACAGTATCAGAAATAA"
+    optimized = run_without_spec(start_seq, translation)
+    print("\nWithout AvoidFrameshiftStartStopCodons")
+    print("Optimized sequence:", optimized)
+    print("Optimized translation (+0):", translate(optimized))
+    print("Frameshift hits after optimization:", find_frameshift_start_stop(optimized))
 
 
 if __name__ == "__main__":
